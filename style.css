@@ -1,0 +1,9 @@
+
+#analy {
+    display: flex;
+    flex-direction: row;
+}
+
+#analy > div {
+    margin: 10px;
+}
