@@ -4,17 +4,13 @@ let ctx = c.getContext("2d");
 let CANVASWIDTH = c.width;
 let CANVASHEIGHT = c.height;
 
-let GRID = {};
+let grid = {}
 let maskingLength = 20;
 
 let doUpdate = true;
 let forceType = "collision";
 
 let damping = .95;
-
-let maxVel = 10;
-let maxAcc = 1;
-
 
 // listend for keyboard input
 document.addEventListener("keydown", function (e) {
@@ -101,30 +97,7 @@ class RadialField {
         }
 
         return force;
-    }    
-    
-    intersects(obj) {
-        let dx = (obj.x) - (this.obj.x);
-        let dy = (obj.y) - (this.obj.y);
-        
-        let dist = Math.sqrt((dx * dx) + (dy * dy));
-
-        if(dist < this.radius + obj.radius){
-            return {"dist": dist, "dx": dx, "dy": dy};
-        }
-
-        return false;
-    }
-
-    pointInside(x, y){
-        let dx = x - this.obj.x;
-        let dy = y - this.obj.y;
-        let dist = Math.sqrt((dx * dx) + (dy * dy));
-        if (dist < this.radius) {
-            return true;
-        }
-        return false;
-    }
+    }     
 
     draw() {
         ctx.beginPath();
@@ -148,137 +121,40 @@ class Object {
         this.acc = new Vector(0, 0);
         this.vel = new Vector(0, 0);
 
-        this.field = new RadialField(this, this.radius, 1, 1, "collision");
-    }
-
-    findClosestPoints(parseSize){
-        let p_NW_x = this.x - this.radius;
-        let p_NW_y = this.y - this.radius;
-
-        let p_NE_x = this.x + this.radius;
-        let p_NE_y = this.y - this.radius;
-
-        let p_SW_x = this.x - this.radius;
-        let p_SW_y = this.y + this.radius;
-
-        let p_SE_x = this.x + this.radius;
-        let p_SE_y = this.y + this.radius;
-
-        // floor all
-        p_NW_x = p_NW_x - (p_NW_x % parseSize);
-        p_NW_y = p_NW_y - (p_NW_y % parseSize);
-        p_NE_x = p_NE_x - (p_NE_x % parseSize);
-        p_NE_y = p_NE_y - (p_NE_y % parseSize);
-        p_SW_x = p_SW_x - (p_SW_x % parseSize);
-        p_SW_y = p_SW_y - (p_SW_y % parseSize);
-        p_SE_x = p_SE_x - (p_SE_x % parseSize);
-        p_SE_y = p_SE_y - (p_SE_y % parseSize);
         
-
-        // ctx.beginPath();
-        // ctx.arc(p_NW_x, p_NW_y, 5, 0, 2 * Math.PI);
-        // ctx.fillStyle = "green";
-        // ctx.fill();
-        // ctx.closePath();
-
-        // ctx.beginPath();
-        // ctx.arc(p_NE_x, p_NE_y, 5, 0, 2 * Math.PI);
-        // ctx.fillStyle = "red";
-        // ctx.fill();
-
-        // ctx.beginPath();
-        // ctx.arc(p_SW_x, p_SW_y, 5, 0, 2 * Math.PI);
-        // ctx.fillStyle = "blue";
-        // ctx.fill();
-
-        // ctx.beginPath();
-        // ctx.arc(p_SE_x, p_SE_y, 5, 0, 2 * Math.PI);
-        // ctx.fillStyle = "oragne";
-        // ctx.fill();
-
-    
-        return {
-            "NW": {"x": p_NW_x, "y": p_NW_y},
-            "NE": {"x": p_NE_x, "y": p_NE_y},
-            "SW": {"x": p_SW_x, "y": p_SW_y},
-            "SE": {"x": p_SE_x, "y": p_SE_y}
-        }
-
-
     }
 
     draw() {
         ctx.beginPath();
         ctx.arc(this.x, this.y, this.radius, 0, 2 * Math.PI);
-        ctx.strokeStyle = this.color;
-        ctx.stroke();
+        ctx.fillStyle = this.color;
+        ctx.fill();
         ctx.closePath();
     }
 
-    basicCollision() {
-        let v = new Vector(0, 0);
-        for (let i = 0; i < OBJS.length; i++) {
-            if (OBJS[i] != this) {
-                let I = this.field.intersects(OBJS[i]);
-                
-                if(I != false){
-
-                    let dir = 1
-                    if(this.field.type == "collision"){
-                        dir = -1;
-                    }
-
-                    let dx = dir * map(I.dx, 0, this.radius, 0, this.field.force);
-                    let dy = dir * map(I.dy, 0, this.radius, 0, this.field.force);
-                    let dist = I.dist;
-
-            
-                    let force = map(dist, 0, this.radius, 0, 1);
-                    
-                    console.log(dx, dy, force);
-                    v.x += dx * force;
-                    v.y += dy * force;
-                }
-                
-            }
-        }   
-        return v;
-    }
-
-
-
     update() {
 
-        let v = new Vector(0, 0);
 
-        // v = this.basicCollision();
-
+        let v = F.calculateForceFromPoint(this.x, this.y, true);
+        v.add(G.calculateForceFromPoint(this.x, this.y, true));
+        v.add(R.calculateForceFromPoint(this.x, this.y, true));
 
         this.acc = new Vector(0, 0);
         this.acc = v;
 
         this.acc.div(this.mass);
-
-        this.acc.x = Math.min(this.acc.x, maxAcc);
-        this.acc.y = Math.min(this.acc.y, maxAcc);
-
-
         this.vel.add(this.acc);
 
         this.vel.x *= damping;
         this.vel.y *= damping;
 
-        if (Math.abs(this.vel.x) < .01){
+        if (Math.abs(this.vel.x) < .1){
             this.vel.x = 0;
         }
 
-        if (Math.abs(this.vel.y) < .01){
+        if (Math.abs(this.vel.y) < .1){
             this.vel.y = 0;
         }
-
-        this.vel.x = Math.min(this.vel.x, maxVel);
-        this.vel.y = Math.min(this.vel.y, maxVel);
-        
 
         this.x += this.vel.x;
         this.y += this.vel.y;
@@ -302,112 +178,62 @@ class Object {
     }
 }
 
-function generateRadialFieldGrid(objects, parseSize) {
 
-    let grid = {};
-
-    for (let i = 0; i < objects.length; i++) {
-
-        let RF = objects[i].field;
-
-        let boundingBox = {
-            "x": RF.obj.x - RF.radius,
-            "y": RF.obj.y - RF.radius,
-            "width": RF.radius * 2,
-            "height": RF.radius * 2
-        }
-
-        startX = boundingBox.x - (boundingBox.x % parseSize);
-        startY = boundingBox.y - (boundingBox.y % parseSize);
-
-        endX = boundingBox.x + boundingBox.width;
-        endY = boundingBox.y + boundingBox.height;
-
-        for (let x = startX; x < endX; x += parseSize) {
-            for (let y = startY; y < endY; y += parseSize) {
-
-                let point = [x, y];
-
-                let dist = Math.sqrt(Math.pow(RF.obj.x - x, 2) + Math.pow(RF.obj.y - y, 2));
-
-                if (dist <= RF.radius) {
-                    if (grid[point] == undefined) {
-                        grid[point] = [];
-                    }
-                    grid[point].push(RF);
-                }
-            }
-        }
-    }
-
-    return grid;
-}
-
-
-function assignForces(OBJS, GRID, parseSize){
-
-
-    for (let i = 0; i < OBJS.length; i++) {
-        let O = OBJS[i];
-        
-        c = O.findClosestPoints(parseSize)
-        
-        NE = [c.NE.x, c.NE.y];
-        NW = [c.NW.x, c.NW.y];
-        SE = [c.SE.x, c.SE.y];
-        SW = [c.SW.x, c.SW.y];
-
-        let v = new Vector(0, 0);
-
-        console.log(NE, NW, SE, SW);
-
-        console.log(GRID[NE]);
-        console.log(GRID[NW]);
-        console.log(GRID[SE]);
-        console.log(GRID[SW]);
-   
-    }
-}
 
 
 let OBJS = [];
-let numObjects = 3;
+let numObjects = 750;
+
+// let F = new RadialField(new Object(CANVASWIDTH / 2, CANVASHEIGHT / 2, 50, "blue"), 200, 3, 2, "collision");
+// let G = new RadialField(new Object(CANVASWIDTH / 2, CANVASHEIGHT / 2, 50, "orange"), 250, 1.5, .5, "gravity");
+// let R = new RadialField(new Object(CANVASWIDTH / 2, CANVASHEIGHT / 2, 50, "red"), 50, 3, 1, "gravity");
+
+let F = new RadialField(new Object(CANVASWIDTH / 2, CANVASHEIGHT / 2, 50, "blue"), 200, 1, .9, "collision");
+let G = new RadialField(new Object(CANVASWIDTH / 2, CANVASHEIGHT / 2, 50, "orange"), 250, 1.2, .5, "gravity");
+let R = new RadialField(new Object(CANVASWIDTH / 2, CANVASHEIGHT / 2, 50, "red"), 50, 3, 1, "gravity");
+
 
 function setup() {
     for (let i = 0; i < numObjects; i++) {
         let x = Math.random() * CANVASWIDTH;
         let y = Math.random() * CANVASHEIGHT;
-        let r = Math.random() * 200 + 5;
+        let r = Math.random() * 10 + 5;
         let c = "rgb(" + Math.random() * 255 + "," + Math.random() * 255 + "," + Math.random() * 255 + ")";
         let O = new Object(x, y, r, c);
+
+        
+
         OBJS.push(O);
     }
-
-    update();
-    GRID = generateRadialFieldGrid(OBJS, maskingLength);
-    update();
-    assignForces(OBJS, GRID, maskingLength);
-    update();
-
-    
 }
 
 // add mouse event listeners
 c.addEventListener("mousemove", function (e) {
-    let x = e.clientX;
-    let y = e.clientY;
+    F.obj.x = e.clientX;
+    F.obj.y = e.clientY;
+
+    G.obj.x = e.clientX;
+    G.obj.y = e.clientY;
+
+    R.obj.x = e.clientX;
+    R.obj.y = e.clientY;
 });
 
 function update() {
 
-    // ctx.clearRect(0, 0, CANVASWIDTH, CANVASHEIGHT);
+    ctx.clearRect(0, 0, CANVASWIDTH, CANVASHEIGHT);
 
-    
-
+    F.draw();
+    G.draw();
+    R.draw();
 
     for (let i = 0; i < OBJS.length; i++) {
         OBJS[i].update();
+        OBJS[i].update();
         OBJS[i].draw();
+
+        // OBJS[i].vel.x += (Math.random() * 2 - 1) * .5;
+        // OBJS[i].vel.y += (Math.random() * 2 - 1) * .5;
     }
 
     if(doUpdate) {
